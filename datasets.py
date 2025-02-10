@@ -52,6 +52,8 @@ def load_dataset(name):
         cifar = True
     else:
         (x_train, y_train), (x_test, y_test) = tf.keras.datasets.mnist.load_data()
+        x_train = x_train[:, :, :, tf.newaxis]
+        x_test = x_test[:, :, :, tf.newaxis]
         cifar = False
     
     # load in class names
@@ -90,25 +92,15 @@ def standardize(x_train, x_test, eps=1e-10):
     tf.constant. tf.float32s. shape=(N_test, I_y, I_x, n_chans).
         Standardized test set features (preliminary).
     '''
-    # Reshape to 2D: (N * height * width, channels)
-    x_train_flat = tf.reshape(x_train, [-1, x_train.shape[-1]])
-    x_test_flat = tf.reshape(x_test, [-1, x_test.shape[-1]])
-    
-    # Calculate mean and std along first axis (all pixels for each channel)
-    means = tf.reduce_mean(x_train_flat, axis=0, keepdims=True)
-    stds = tf.math.reduce_std(x_train_flat, axis=0, keepdims=True) + eps
-    
-    # Standardize
-    x_train_std = (x_train_flat - means) / stds
-    x_test_std = (x_test_flat - means) / stds
-    
-    # Reshape back to original shape
-    x_train_final = tf.reshape(x_train_std, x_train.shape)
-    x_test_final = tf.reshape(x_test_std, x_test.shape)
-    
-    return x_train_final, x_test_final
-    
+    # Compute mean and standard deviation across all images but per channel
+    mean = tf.reduce_mean(x_train, axis=[0, 1, 2], keepdims=True)  # Shape: (1, 1, 1, n_chans)
+    std = tf.math.reduce_std(x_train, axis=[0, 1, 2], keepdims=True)  # Shape: (1, 1, 1, n_chans)
 
+    # Standardize the datasets
+    standardized_x_train = (x_train - mean) / (std + eps)
+    standardized_x_test = (x_test - mean) / (std + eps)
+
+    return standardized_x_train, standardized_x_test
 
 def train_val_split(x_train, y_train, val_prop=0.1):
     '''Subdivides the preliminary training set into disjoint/non-overlapping training set and validation sets.
@@ -179,4 +171,14 @@ def get_dataset(name, standardize_ds=True, val_prop=0.1):
     classnames: Python list. strs. len(classnames)=num_unique_classes.
         The human-readable string names of the classes in the dataset. If there are 10 classes, len(classnames)=10.
     '''
-    pass
+    #load
+    x_train, y_train, x_test, y_test, class_names = load_dataset(name)
+
+    #standardize
+    if(standardize_ds):
+        x_train, x_test = standardize(x_train, x_test)
+
+    #val_split
+    x_train_final, y_train_final, x_val, y_val = train_val_split(x_train, y_train, val_prop)
+
+    return x_train_final, y_train_final, x_val, y_val, x_test, y_test, class_names
