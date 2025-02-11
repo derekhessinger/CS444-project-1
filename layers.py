@@ -201,7 +201,7 @@ class Layer:
         Python list by calling the `list` function — e.g. `list(blah)`.
         '''
         # net_in = x
-        net_in = tf.linalg.matmul(x, self.wts) + self.b
+        net_in = self.compute_net_input(x)
         net_act = self.compute_net_activation(net_in)
         if self.output_shape is None:
             self.output_shape = list(net_act.shape)
@@ -444,8 +444,12 @@ class Dense(Layer):
         NOTE: This layer uses lazy initialization. This means that if the wts are currently None when we enter this
         method, we should call `init_params` to initialize the parameters!
         '''
-        pass
-
+        if self.wts is None:
+            self.init_params()
+        
+        net_in = tf.linalg.matmul(x, self.wts) + self.b
+        return net_in
+    
     def compute_batch_norm(self, net_in, eps=0.001):
         '''Computes the batch normalization in a manner that is appropriate for Dense layers.
 
@@ -501,7 +505,8 @@ class Dropout(Layer):
         TODO: Set the parameters as instance variables. Call the superclass constructor to handle setting instance vars
         the child has in common with the parent class.
         '''
-        pass
+        super().__init__(name, 'linear', prev_layer_or_block)
+        self.rate = rate
 
     def compute_net_input(self, x):
         '''Computes the net input for the current Dropout layer.
@@ -523,7 +528,14 @@ class Dropout(Layer):
         axes when working with shapes. For example, blah.shape[2] is considered hard coding because blah may not always
         have an axis 2.
         '''
-        pass
+        if not self.is_training:
+            return x
+        #dropout
+        random_tensor = tf.random.uniform(shape=x.shape, minval=0, maxval=1, dtype=tf.float32) #NOTE can you do this for exam?
+        # mask =  tf.zeros_like(random_tensor)
+        # x = tf.where(random_tensor > self.rate, x, mask)
+        x = tf.where(random_tensor > self.rate, x, 0)
+        return x / (1 - self.rate)
 
     def __str__(self):
         '''This layer's "ToString" method. Feel free to customize if you want to make the layer description fancy,
@@ -550,6 +562,7 @@ class Flatten(Layer):
         TODO: Set the parameters as instance variables. Call the superclass constructor to handle setting instance vars
         the child has in common with the parent class.
         '''
+        super().__init__(name, 'linear', prev_layer_or_block)
         pass
 
     def compute_net_input(self, x):
@@ -570,8 +583,11 @@ class Flatten(Layer):
         NOTE:
         - While the shape of the input `x` will usually be 4D, it is better to not hard-code this just in case.
         For example, do NOT do compute the number of non-batch inputs as x.shape[1]*x.shape[2]*x.shape[3]
-        '''
-        pass
+        ''' # NOTE THIS FOR EXAM, flattening all but batch
+        # flattened dimensions -- product of all except batch
+        flatten_dim = tf.reduce_prod(tf.shape(x)[1:])
+        print([tf.shape(x)[0], flatten_dim])
+        return tf.reshape(x, shape=[tf.shape(x)[0], flatten_dim])
 
     def __str__(self):
         '''This layer's "ToString" method. Feel free to customize if you want to make the layer description fancy,
