@@ -38,6 +38,12 @@ class Layer:
 
         TODO: Make instance variables for each of the constructor parameters
         '''
+        self.layer_name = layer_name
+        self.activation = activation
+        self.prev_layer_or_block = prev_layer_or_block
+        self.do_batch_norm = do_batch_norm
+        self.batch_norm_momentum = batch_norm_momentum
+        self.do_layer_norm = do_layer_norm
 
         self.wts = None
         self.b = None
@@ -59,26 +65,32 @@ class Layer:
 
     def get_name(self):
         '''Returns the human-readable string name of the current layer.'''
+        return self.layer_name
         pass
 
     def get_act_fun_name(self):
         '''Returns the activation function string name used in the current layer.'''
+        return self.activation
         pass
 
     def get_prev_layer_or_block(self):
         '''Returns a reference to the Layer object that represents the layer below the current one.'''
+        return self.prev_layer_or_block
         pass
 
     def get_wts(self):
         '''Returns the weights of the current layer'''
+        return self.wts
         pass
 
     def get_b(self):
         '''Returns the bias of the current layer'''
+        return self.b
         pass
 
     def has_wts(self):
         '''Does the current layer store weights? By default, we assume it does not (i.e. always return False).'''
+        return False
         pass
 
     def get_mode(self):
@@ -86,6 +98,7 @@ class Layer:
 
         HINT: Check out the instance variables above...
         '''
+        return self.is_training
         pass
 
     def set_mode(self, is_training):
@@ -108,6 +121,7 @@ class Layer:
         Use the `assign` method on the instance variable to update the training state.
         This method should be a one-liner.
         '''
+        self.is_training.assign(is_training) ## NOTE - Know to do/ and why to do this for exam!
         pass
 
 
@@ -150,8 +164,15 @@ class Layer:
         - Unless instructed otherwise, you may use the activation function implementations provided by the low level
         TensorFlow API here (You already implemented them in CS343 so you have earned it :)
         '''
-        pass
-        # raise ValueError(f'Unknown activation function {self.act_fun_name}')
+
+        if self.activation == 'relu':
+            return tf.nn.relu(net_in)
+        elif self.activation == 'linear':
+            return net_in  # Linear activation just returns the input unchanged
+        elif self.activation == 'softmax':
+            return tf.nn.softmax(net_in, axis=-1)  # Softmax applied across the last dimension
+        else:
+            raise ValueError(f'Unknown activation function {self.activation}')
 
     def __call__(self, x):
         '''Do a forward pass thru the layer with mini-batch `x`.
@@ -179,7 +200,12 @@ class Layer:
         set it to the shape of the layer's activation, represented as a Python list. You can convert something into a
         Python list by calling the `list` function — e.g. `list(blah)`.
         '''
-        pass
+        # net_in = x
+        net_in = tf.linalg.matmul(x, self.wts) + self.b
+        net_act = self.compute_net_activation(net_in)
+        if self.output_shape is None:
+            self.output_shape = list(net_act.shape)
+        return net_act
 
     def get_params(self):
         '''Gets a list of all the parameters learned by the layer (wts, bias, etc.).
@@ -371,9 +397,13 @@ class Dense(Layer):
         super().__init__(name, activation, prev_layer_or_block,
                          do_batch_norm=do_batch_norm,
                          do_layer_norm=do_layer_norm)
+        self.units = units
+        self.wt_scale = wt_scale
+        self.wt_init = wt_init
 
     def has_wts(self):
         '''Returns whether the Dense layer has weights. This is always true so always return... :)'''
+        return True
         pass
 
     def init_params(self, input_shape):
@@ -393,7 +423,10 @@ class Dense(Layer):
         element of input_shape. This may sound silly, but doing this will prevent you from having to modify this method
         later in the semester :)
         '''
-        pass
+        #wts using input_shape[-1]
+        self.wts = tf.Variable(tf.random.normal(shape=(input_shape[-1], self.units), mean=0.0, stddev=self.wt_scale), dtype=tf.float32, trainable=True) # NOTE Know this for exam, wrapping in tf.Variable
+        #bias
+        self.b = tf.Variable(tf.random.normal(shape=(self.units,), mean=0.0, stddev=self.wt_scale), dtype=tf.float32, trainable=True)
 
     def compute_net_input(self, x):
         '''Computes the net input for the current Dense layer.
