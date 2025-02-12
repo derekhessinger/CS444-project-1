@@ -624,6 +624,10 @@ class MaxPool2D(Layer):
         TODO: Set the parameters as instance variables. Call the superclass constructor to handle setting instance vars
         the child has in common with the parent class.
         '''
+        super().__init__(name, 'linear', prev_layer_or_block)
+        self.pool_size = pool_size
+        self.strides = strides
+        self.padding = padding
         pass
 
     def compute_net_input(self, x):
@@ -645,7 +649,8 @@ class MaxPool2D(Layer):
 
         Helpful link: https://www.tensorflow.org/api_docs/python/tf/nn/max_pool2d
         '''
-        pass
+        return tf.nn.max_pool2d(x, self.pool_size, self.strides, self.padding)
+
 
     def __str__(self):
         '''This layer's "ToString" method. Feel free to customize if you want to make the layer description fancy,
@@ -692,11 +697,16 @@ class Conv2D(Layer):
         TODO: Set the parameters as instance variables. Call the superclass constructor to handle setting instance vars
         the child has in common with the parent class.
         '''
-        pass
+        super().__init__(name, activation, prev_layer_or_block, do_batch_norm)
+        self.units = units
+        self.kernel_size = kernel_size
+        self.wt_scale = wt_scale
+        self.strides = strides
+        self.wt_init = wt_init
 
     def has_wts(self):
         '''Returns whether the Conv2D layer has weights. This is always true so always return... :)'''
-        pass
+        return True
 
     def init_params(self, input_shape):
         '''Initializes the Conv2D layer's weights and biases.
@@ -712,7 +722,17 @@ class Conv2D(Layer):
         training.
         - For consistency with the test code, initialize your wts before your biases.
         '''
-        pass
+        # set instance variables for input shape
+        B, Iy, Ix, K1 = input_shape
+        # initalize wts
+        #NOTE not sure what initialization method to use
+        w_shape = (self.kernel_size[0], self.kernel_size[1], K1, self.units)
+        initial_w = tf.random.normal(w_shape)
+        self.wts = tf.Variable(initial_w, dtype=tf.float32)*self.wt_scale
+
+        # initialize biases
+        initial_b = tf.random.normal((self.units,))
+        self.b = tf.Variable(initial_b, dtype=tf.float32)*self.wt_scale
 
     def compute_net_input(self, x):
         '''Computes the net input for the current Conv2D layer. Uses SAME boundary conditions.
@@ -737,7 +757,17 @@ class Conv2D(Layer):
 
         NOTE: Don't forget the bias!
         '''
-        pass
+
+        # first initialize wts due to lazy initialization
+        if self.wts is None or self.b is None:
+            self.init_params(x.shape)
+
+        # compute convolution using TF conv2d
+        net_in = tf.nn.conv2d(x, self.wts, self.strides, "SAME")
+        bias_broadcast = tf.reshape(self.b, (1, 1, 1, -1))
+        net_in = net_in + bias_broadcast
+        #NOTE this fails the second forward layer pass test, come back to check 
+        return net_in
 
     def compute_batch_norm(self, net_in, eps=0.001):
         '''Computes the batch normalization in a manner that is appropriate for Conv2D layers.

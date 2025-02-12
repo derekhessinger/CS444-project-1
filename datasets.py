@@ -93,8 +93,8 @@ def standardize(x_train, x_test, eps=1e-10):
         Standardized test set features (preliminary).
     '''
     # Compute mean and standard deviation across all images but per channel
-    mean = tf.reduce_mean(x_train, axis=[0, 1, 2], keepdims=True)  # Shape: (1, 1, 1, n_chans)
-    std = tf.math.reduce_std(x_train, axis=[0, 1, 2], keepdims=True)  # Shape: (1, 1, 1, n_chans)
+    mean = tf.reduce_mean(tf.concat([x_train,x_test], axis=0), axis=[0, 1, 2])  # Shape: (1, 1, 1, n_chans)
+    std = tf.math.reduce_std(x_train, axis=[0, 1, 2])  # Shape: (1, 1, 1, n_chans)
 
     # Standardize the datasets
     standardized_x_train = (x_train - mean) / (std + eps)
