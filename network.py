@@ -30,6 +30,10 @@ class DeepNetwork:
         self.loss_name = None
         self.output_layer = None
         self.all_net_params = []
+        self.opt = None
+
+        self.input_feats_shape = input_feats_shape
+        self.reg = reg
 
     def compile(self, loss='cross_entropy', optimizer='adam', lr=1e-3, beta_1=0.9, print_summary=True):
         '''Compiles the neural network to prepare for training.
@@ -68,8 +72,10 @@ class DeepNetwork:
 
         # Initialize optimizer
         #TODO: Fill this section in
-
-            # raise ValueError(f'Unknown optimizer {optimizer}')
+        if optimizer == 'adam':
+            self.opt = tf.keras.optimizers.Adam(learning_rate=lr, beta_1=beta_1)
+        else:
+            raise ValueError(f'Unknown optimizer {optimizer}')
 
         # Do 'fake' forward pass through net to create wts/bias
         x_fake = self.get_one_fake_input()

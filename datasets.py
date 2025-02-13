@@ -175,7 +175,7 @@ def get_dataset(name, standardize_ds=True, val_prop=0.1):
     x_train, y_train, x_test, y_test, class_names = load_dataset(name)
 
     #standardize
-    if(standardize_ds):
+    if standardize_ds:
         x_train, x_test = standardize(x_train, x_test)
 
     #val_split

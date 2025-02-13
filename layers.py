@@ -445,7 +445,7 @@ class Dense(Layer):
         method, we should call `init_params` to initialize the parameters!
         '''
         if self.wts is None:
-            self.init_params()
+            self.init_params(x.shape)
         
         net_in = tf.linalg.matmul(x, self.wts) + self.b
         return net_in

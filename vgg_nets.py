@@ -55,7 +55,16 @@ class VGG4(network.DeepNetwork):
         - The only requirement on your variable names is that you MUST name your output layer `self.output_layer`.
         - Use helpful names for your layers and variables. You will have to live with them!
         '''
+
         super().__init__(input_feats_shape=input_feats_shape, reg=reg)
+        conv_layer_1 = Conv2D('conv_layer_1', filters, kernel_size=(3,3), strides= 1, activation= 
+                              'relu', wt_scale= wt_scale, prev_layer_or_block=None, wt_init=wt_init, do_batch_norm = False)
+        conv_layer_2 = Conv2D('conv_layer_2', filters, kernel_size=(3,3), strides= 1, activation= 
+                              'relu', wt_scale= wt_scale, prev_layer_or_block=conv_layer_1, wt_init=wt_init, do_batch_norm = False)
+        max_pool_layer_2 = MaxPool2D('max_pool_layer_1', pool_size= (2,2), strides = 2, prev_layer_or_block=conv_layer_1, padding='VALID')
+        #KEEP GOING, notdone!
+
+        self.output_layer = Dense('output_layer', units=C) # NOT COMPLETE
 
     def __call__(self, x):
         '''Forward pass through the VGG4 network with the data samples `x`.
