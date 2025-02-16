@@ -122,7 +122,10 @@ class DeepNetwork:
         TODO: Starting with the output layer, traverse the net backward, calling the appropriate method to
         set the training mode in each network layer. Model this process around the summary method.
         '''
-        pass
+        layer = self.output_layer
+        while layer is not None:
+            layer.set_mode(is_training)
+            layer = layer.get_prev_layer_or_block()
 
     def init_batchnorm_params(self):
         '''Initializes batch norm related parameters in all layers that are using batch normalization.
@@ -153,6 +156,9 @@ class DeepNetwork:
 
         layer = self.output_layer
         while layer is not None:
+            # print(layer.layer_name)
+            # if (layer.b is not None):
+            #     print(f"Trainable b: {layer.b.trainable}")
             if wts_only:
                 params = layer.get_wts()
 
@@ -184,6 +190,11 @@ class DeepNetwork:
 
         Hint: tf.where might be helpful.
         '''
+        correct = tf.where(y_true == y_pred, 1, 0)  # Converts True → 1, False → 0
+        return tf.reduce_mean(tf.cast(correct, tf.float32))
+        correct = tf.where(y_true == y_pred, 1, 0)
+        
+        return tf.reduce_mean(correct)
         pass
 
     def predict(self, x, output_layer_net_act=None):
@@ -200,7 +211,11 @@ class DeepNetwork:
         tf.constant. tf.ints32. shape=(B,).
             int-coded predicted class for each sample in the mini-batch.
         '''
-        pass
+        net_act = output_layer_net_act
+        if net_act is None:
+            net_act = self(x)
+        tf_max_index = tf.argmax(net_act, axis=1, output_type=tf.int32)  # Get class index per sample
+        return tf_max_index
 
     def loss(self, out_net_act, y, eps=1e-16):
         '''Computes the loss for the current minibatch based on the output layer activations `out_net_act` and int-coded
@@ -228,9 +243,14 @@ class DeepNetwork:
         function in tf_util.py that offers functionality that is similar to arange indexing in NumPy (which you cannot
         do in TensorFlow). Use it!
         '''
+        # method from Professor, just like arange indexing
+        post_chosen_acts = arange_index(out_net_act, y)
 
-        # else:
-            # raise ValueError(f'Unknown loss function {self.loss_name}')
+
+        if self.loss_name == 'cross_entropy':
+            loss = -tf.reduce_mean(tf.math.log(post_chosen_acts + eps))
+        else:
+            raise ValueError(f'Unknown loss function {self.loss_name}')
 
         # Keep the following code
         # Handles the regularization for Adam
@@ -279,7 +299,11 @@ class DeepNetwork:
 
         NOTE: Don't forget to record gradients on a gradient tape!
         '''
-        pass
+        with tf.GradientTape() as tape: #NOTE FOR EXAM Know gradient tape perhaps??
+            net_act = self(x_batch)
+            loss = self.loss(net_act, y_batch)
+            self.update_params(tape, loss)
+        return(loss)
 
     # @tf.function(jit_compile=True)
     @tf.function
@@ -306,7 +330,12 @@ class DeepNetwork:
 
         NOTE: There should not be any gradient tapes here.
         '''
-        pass
+        net_act = self(x_batch)
+        loss = self.loss(net_act, y_batch)
+        y_pred = self.predict(x_batch, net_act)
+        acc = self.accuracy(y_batch, y_pred)
+
+        return(acc, loss)
 
     def fit(self, x, y, x_val=None, y_val=None, batch_size=128, max_epochs=10000, val_every=1, verbose=True,
             patience=999, lr_patience=999, lr_decay_factor=0.5, lr_max_decays=12):
@@ -382,6 +411,68 @@ class DeepNetwork:
         - `evaluate` kicks all the network layers out of training mode (as is required bc it is doing prediction).
         Be sure to bring the network layers back into training mode after you are doing computing val acc+loss.
         '''
+        # Set all layers to training mode
+        self.set_layer_training_mode(is_training=True)
+
+        # Histories to record loss and accuracy over epochs
+        train_loss_hist = []
+        val_loss_hist = []
+        val_acc_hist = []
+
+        # Number of training samples (assumes x is a tensor or array-like with shape[0] = N)
+        N = x.shape[0]
+        
+        # Use a fixed random seed for reproducibility when sampling mini-batches
+        np.random.seed(0)
+        
+        # Main training loop
+        for epoch in range(max_epochs):
+            epoch_start_time = time.time()
+            # Compute number of mini-batches for this epoch
+            num_batches = int(np.ceil(N / batch_size))
+            epoch_train_loss = 0.0
+            
+            # Process mini-batches with replacement
+            for i in range(num_batches):
+                # Sample indices with replacement
+                batch_indices = np.random.choice(N, size=batch_size, replace=True)
+                x_batch = tf.gather(x, batch_indices)
+                y_batch = tf.gather(y, batch_indices)
+                
+                # Perform one training step (forward + backward) on this mini-batch
+                loss_value = self.train_step(x_batch, y_batch)
+                epoch_train_loss += float(loss_value)
+            
+            # Average training loss for this epoch
+            avg_train_loss = epoch_train_loss / num_batches
+            train_loss_hist.append(avg_train_loss)
+            
+            # Every val_every epochs, compute validation metrics
+            if (epoch + 1) % val_every == 0:
+                # Evaluate on validation set if provided; otherwise, evaluate on the training set
+                if x_val is not None and y_val is not None:
+                    val_acc, val_loss = self.evaluate(x_val, y_val, batch_sz=batch_size)
+                else:
+                    val_acc, val_loss = self.evaluate(x, y, batch_sz=batch_size)
+                
+                val_loss_hist.append(float(val_loss))
+                val_acc_hist.append(float(val_acc))
+                
+                # After evaluation, set layers back to training mode (since evaluate() sets them to False)
+                self.set_layer_training_mode(is_training=True)
+                
+                if verbose:
+                    epoch_time = time.time() - epoch_start_time
+                    print(f"Epoch {epoch+1}/{max_epochs}: Train Loss: {avg_train_loss:.4f}, "
+                        f"Val Loss: {val_loss:.4f}, Val Acc: {val_acc:.4f}, Time: {epoch_time:.2f}s")
+            else:
+                if verbose:
+                    epoch_time = time.time() - epoch_start_time
+                    print(f"Epoch {epoch+1}/{max_epochs}: Train Loss: {avg_train_loss:.4f}, Time: {epoch_time:.2f}s")
+            
+            # (For Week 1, early stopping and learning rate decay are ignored.)
+        
+        e = epoch + 1  # Total number of epochs executed
         print(f'Finished training after {e} epochs!')
         return train_loss_hist, val_loss_hist, val_acc_hist, e
 

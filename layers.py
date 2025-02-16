@@ -586,7 +586,7 @@ class Flatten(Layer):
         ''' # NOTE THIS FOR EXAM, flattening all but batch
         # flattened dimensions -- product of all except batch
         flatten_dim = tf.reduce_prod(tf.shape(x)[1:])
-        print([tf.shape(x)[0], flatten_dim])
+        # print([tf.shape(x)[0], flatten_dim])
         return tf.reshape(x, shape=[tf.shape(x)[0], flatten_dim])
 
     def __str__(self):
@@ -726,13 +726,19 @@ class Conv2D(Layer):
         B, Iy, Ix, K1 = input_shape
         # initalize wts
         #NOTE not sure what initialization method to use
+        B, Iy, Ix, K1 = input_shape
         w_shape = (self.kernel_size[0], self.kernel_size[1], K1, self.units)
-        initial_w = tf.random.normal(w_shape)
-        self.wts = tf.Variable(initial_w, dtype=tf.float32)*self.wt_scale
 
-        # initialize biases
-        initial_b = tf.random.normal((self.units,))
-        self.b = tf.Variable(initial_b, dtype=tf.float32)*self.wt_scale
+        # # Initialize weights properly
+        # initial_w = tf.random.normal(w_shape) * self.wt_scale
+        # self.wts = tf.Variable(initial_w, dtype=tf.float32, trainable=True)
+
+        # # Initialize biases properly without creating an EagerTensor
+        # initial_b = tf.random.normal((self.units,)) * self.wt_scale
+        # self.b = tf.Variable(initial_b, dtype=tf.float32, trainable=True)
+        self.wts = tf.Variable(tf.random.normal(shape=w_shape, mean=0.0, stddev=self.wt_scale), dtype=tf.float32, trainable=True) # NOTE Know this for exam, wrapping in tf.Variable
+        #bias
+        self.b = tf.Variable(tf.random.normal(shape=(self.units,), mean=0.0, stddev=self.wt_scale), dtype=tf.float32, trainable=True)
 
     def compute_net_input(self, x):
         '''Computes the net input for the current Conv2D layer. Uses SAME boundary conditions.

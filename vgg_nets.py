@@ -57,14 +57,26 @@ class VGG4(network.DeepNetwork):
         '''
 
         super().__init__(input_feats_shape=input_feats_shape, reg=reg)
+        self.layers = []
         conv_layer_1 = Conv2D('conv_layer_1', filters, kernel_size=(3,3), strides= 1, activation= 
                               'relu', wt_scale= wt_scale, prev_layer_or_block=None, wt_init=wt_init, do_batch_norm = False)
+        self.layers.append(conv_layer_1)
         conv_layer_2 = Conv2D('conv_layer_2', filters, kernel_size=(3,3), strides= 1, activation= 
                               'relu', wt_scale= wt_scale, prev_layer_or_block=conv_layer_1, wt_init=wt_init, do_batch_norm = False)
-        max_pool_layer_2 = MaxPool2D('max_pool_layer_1', pool_size= (2,2), strides = 2, prev_layer_or_block=conv_layer_1, padding='VALID')
-        #KEEP GOING, notdone!
-
-        self.output_layer = Dense('output_layer', units=C) # NOT COMPLETE
+        self.layers.append(conv_layer_2)
+        max_pool_layer_2 = MaxPool2D('max_pool_layer_1', pool_size= (2,2), strides = 2, prev_layer_or_block=conv_layer_2, padding='VALID')
+        self.layers.append(max_pool_layer_2)
+        flatten_layer_2 = Flatten('flatten_layer_2', max_pool_layer_2)
+        self.layers.append(flatten_layer_2)
+        dense_layer_3 = Dense('dense_layer_3', dense_units, activation='relu', wt_scale=wt_scale,
+                              prev_layer_or_block=flatten_layer_2, wt_init=wt_init)
+        self.layers.append(dense_layer_3)
+        dropout_layer_3 = Dropout('dropout_layer_3', 0.5, dense_layer_3)
+        self.layers.append(dropout_layer_3)
+        self.output_layer = Dense('output_layer', units=C, activation='softmax', wt_scale=wt_scale,
+                              prev_layer_or_block=dropout_layer_3, wt_init=wt_init)
+        self.layers.append(self.output_layer)
+        
 
     def __call__(self, x):
         '''Forward pass through the VGG4 network with the data samples `x`.
@@ -81,7 +93,10 @@ class VGG4(network.DeepNetwork):
 
         NOTE: Use the functional API to perform the forward pass through your network!
         '''
-        pass
+        net_act = x
+        for cur_layer in self.layers:
+            net_act = cur_layer(net_act)
+        return net_act
 
 
 class VGG6(network.DeepNetwork):
