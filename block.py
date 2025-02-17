@@ -29,6 +29,9 @@ class Block:
         work as expected. This list will store a reference to all specific layers that belong to the block. This is
         handled by specific blocks (i.e. child classes of this class) so it should remain empty here.
         '''
+        self.blockname = blockname
+        self.get_prev_layer_or_block = prev_layer_or_block
+        self.layers = []
         pass
 
     def get_prev_layer_or_block(self):
@@ -171,6 +174,27 @@ class VGGConvBlock(Block):
         '''
         super().__init__(blockname, prev_layer_or_block=prev_layer_or_block)
 
+        if isinstance(units, int): # THIS is because the test code and docstring seem to contradict
+            units = [units] * num_conv_layers  # Repeat the value for the number of conv layers
+
+        
+        for i in range(num_conv_layers):
+            if i == 0:
+                conv_layer_i = Conv2D(f"{blockname}/conv_layer_{i}", units[i], kernel_size=(3,3), strides= 1, activation= 
+                              'relu', wt_scale= wt_scale, prev_layer_or_block=prev_layer_or_block, wt_init=wt_init, do_batch_norm = do_batch_norm)
+            else:
+                conv_layer_i = Conv2D(f'{blockname}/conv_layer_{i}', units[i], kernel_size=(3,3), strides= 1, activation= 
+                                'relu', wt_scale= wt_scale, prev_layer_or_block=conv_layer_i, wt_init=wt_init, do_batch_norm = do_batch_norm)
+            self.layers.append(conv_layer_i)
+
+        max_pool_layer = MaxPool2D(f'{blockname}/max_pool_layer_{i}', pool_size= pool_size, strides = 2, prev_layer_or_block=conv_layer_i, padding='VALID')
+        self.layers.append(max_pool_layer)
+
+        if dropout:
+            dropout_layer = Dropout(f'{blockname}/dropout_layer_{i}', dropout_rate, prev_layer_or_block=max_pool_layer)
+            self.layers.append(dropout_layer)
+
+
     def __call__(self, x):
         '''Forward pass through the block the data samples `x`.
 
@@ -190,7 +214,10 @@ class VGGConvBlock(Block):
         1. Use the functional API to perform the forward pass through your network!
         2. There is an elegant/short way to forward thru the block involving self.layers... ;)
         '''
-        pass
+        net_act = x
+        for cur_layer in self.layers:
+            net_act = cur_layer(net_act)
+        return net_act
 
 
 class VGGDenseBlock(Block):
