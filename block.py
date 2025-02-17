@@ -30,7 +30,7 @@ class Block:
         handled by specific blocks (i.e. child classes of this class) so it should remain empty here.
         '''
         self.blockname = blockname
-        self.get_prev_layer_or_block = prev_layer_or_block
+        self.prev_layer_or_block = prev_layer_or_block
         self.layers = []
         pass
 
@@ -272,6 +272,32 @@ class VGGDenseBlock(Block):
         and 'VGGBlock_0/dense_1'. This will help making sense of the summary print outs when the net is compiled.
 
         '''
+        # call super constructor
+        super().__init__(blockname, prev_layer_or_block)
+
+        # Handle both single value and tuple/list of units
+        if not isinstance(units, (tuple, list)):
+            units = [units] * num_dense_blocks
+
+        # for the num of dense blocks
+        for i in range(num_dense_blocks):
+            # initialize dense layer
+
+            if i==0:
+                dense_layer_i = Dense(f'{blockname}/dense_layer_{i}', units=units[i], activation='relu', wt_scale=wt_scale, prev_layer_or_block=
+                                  prev_layer_or_block, wt_init=wt_init, do_batch_norm=do_batch_norm)
+            else:
+                dense_layer_i = Dense(f'{blockname}/dense_layer_{i}', units=units[i], activation='relu', wt_scale=wt_scale, prev_layer_or_block=
+                                  dense_layer_i, wt_init=wt_init, do_batch_norm=do_batch_norm)
+            
+            # appened dense layer
+            self.layers.append(dense_layer_i)
+
+            # add dropout if true
+            if dropout:
+                # create dropout layer
+                dropout_layer = Dropout(f'{blockname}/dropout_layer_{i}', dropout_rate, prev_layer_or_block=dense_layer_i)
+                self.layers.append(dropout_layer)
         pass
 
     def __call__(self, x):
@@ -291,4 +317,8 @@ class VGGDenseBlock(Block):
         1. Use the functional API to perform the forward pass through your network!
         2. There is an elegant/short way to forward thru the block involving self.layers... ;)
         '''
-        pass
+
+        net_act = x
+        for layer in self.layers:
+            net_act = layer(net_act)
+        return net_act

@@ -135,8 +135,36 @@ class VGG6(network.DeepNetwork):
         objects here! The number of lines of code should be comparable or perhaps a little less than VGG4
         (thanks to blocks!).
         '''
-        pass
 
+        # call super
+        super().__init__(input_feats_shape=input_feats_shape, reg=reg)
+        
+        self.layers = []
+        
+        # First conv block (64 filters)
+        conv_block_1 = VGGConvBlock('conv_block_1', filters[0], None, wt_scale=wt_scale)
+        self.layers.append(conv_block_1)
+        
+        # Second conv block (128 filters)
+        conv_block_2 = VGGConvBlock('conv_block_2', filters[1], prev_layer_or_block=conv_block_1, wt_scale=wt_scale)
+        self.layers.append(conv_block_2)
+        
+        # Flatten BEFORE dense blocks
+        flatten_layer = Flatten('flatten', conv_block_2)
+        self.layers.append(flatten_layer)
+        
+        # Dense block with dropout (256 units)
+        dense_block = VGGDenseBlock('dense_block', units=dense_units[0], prev_layer_or_block=flatten_layer, 
+                                wt_scale=wt_scale, dropout=True, wt_init=wt_init)
+        self.layers.append(dense_block)
+        
+        # Output layer (C units with softmax)
+        self.output_layer = Dense('output', units=C, activation='softmax', 
+                                prev_layer_or_block=dense_block, wt_scale=wt_scale, 
+                                wt_init=wt_init)
+        self.layers.append(self.output_layer)
+
+        pass
     def __call__(self, x):
         '''Forward pass through the VGG6 network with the data samples `x`.
 
@@ -152,7 +180,10 @@ class VGG6(network.DeepNetwork):
 
         NOTE: Use the functional API to perform the forward pass through your network!
         '''
-        pass
+        net_act = x
+        for cur_layer in self.layers:
+            net_act = cur_layer(net_act)
+        return net_act
 
 
 class VGG8(network.DeepNetwork):
