@@ -425,6 +425,9 @@ class DeepNetwork:
         # Use a fixed random seed for reproducibility when sampling mini-batches
         np.random.seed(0)
         
+        # val early stop list
+        val_early_stop = []
+
         # Main training loop
         for epoch in range(max_epochs):
             epoch_start_time = time.time()
@@ -465,6 +468,10 @@ class DeepNetwork:
                     epoch_time = time.time() - epoch_start_time
                     print(f"Epoch {epoch+1}/{max_epochs}: Train Loss: {avg_train_loss:.4f}, "
                         f"Val Loss: {val_loss:.4f}, Val Acc: {val_acc:.4f}, Time: {epoch_time:.2f}s")
+                    
+                val_early_stop, stop = self.early_stopping(val_early_stop, val_loss, patience)
+                if stop:
+                    break
             else:
                 if verbose:
                     epoch_time = time.time() - epoch_start_time
@@ -574,8 +581,26 @@ class DeepNetwork:
         - It may be helpful to think of `recent_val_losses` as a queue: the current loss value always gets inserted
         either at the beginning or end. The oldest value is then always on the other end of the list.
         '''
-        stop = False
-
+        # if fewer losses than patience, add current loss and continue training
+        if len(recent_val_losses) < patience:
+            recent_val_losses.append(curr_val_loss)
+            return recent_val_losses, False
+            
+        # remove oldest loss if we've reached patience limit
+        if len(recent_val_losses) == patience:
+            recent_val_losses.pop(0)
+        
+        # add current loss to end of list
+        recent_val_losses.append(curr_val_loss)
+        
+        # get the oldest loss (first in list) to compare against more recent ones
+        oldest_loss = recent_val_losses[0]
+        
+        # check if oldest loss is smaller than all more recent losses
+        stop = all(oldest_loss < loss for loss in recent_val_losses[1:])
+        
+        return recent_val_losses, stop
+    
     def update_lr(self, lr_decay_rate):
         '''Adjusts the learning rate used by the optimizer to be a proportion `lr_decay_rate` of the current learning
         rate.
