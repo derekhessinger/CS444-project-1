@@ -241,7 +241,15 @@ class Layer:
         float.
             The Kaiming gain.
         '''
-        pass
+        
+        if self.activation == 'relu':
+            return 2
+        elif self.activation == 'linear':
+            return 1
+        elif self.activation == 'softmax':
+            return 1
+        else:
+            raise ValueError(f'Unknown activation function within get_kaiming_gain() function {self.activation}')
 
     def is_doing_batchnorm(self):
         '''Returns whether the current layer is using batch normalization.
@@ -423,10 +431,25 @@ class Dense(Layer):
         element of input_shape. This may sound silly, but doing this will prevent you from having to modify this method
         later in the semester :)
         '''
-        #wts using input_shape[-1]
-        self.wts = tf.Variable(tf.random.normal(shape=(input_shape[-1], self.units), mean=0.0, stddev=self.wt_scale), dtype=tf.float32, trainable=True) # NOTE Know this for exam, wrapping in tf.Variable
-        #bias
-        self.b = tf.Variable(tf.random.normal(shape=(self.units,), mean=0.0, stddev=self.wt_scale), dtype=tf.float32, trainable=True)
+
+        if self.wt_init == 'normal':
+            #wts using input_shape[-1]
+            self.wts = tf.Variable(tf.random.normal(shape=(input_shape[-1], self.units), mean=0.0, stddev=self.wt_scale), dtype=tf.float32, trainable=True) # NOTE Know this for exam, wrapping in tf.Variable
+            #bias
+            self.b = tf.Variable(tf.random.normal(shape=(self.units,), mean=0.0, stddev=self.wt_scale), dtype=tf.float32, trainable=True)
+        elif self.wt_init == 'he':
+            k = self.get_kaiming_gain()
+            # print(input_shape[-1])
+            # print(k)
+            # Had to cast them to floats
+            he_stdev = tf.sqrt(tf.cast(k, tf.float32)) / tf.sqrt(tf.cast(input_shape[-1], tf.float32))
+
+            self.wts = tf.Variable(tf.random.normal(shape=(input_shape[-1], self.units), mean=0.0, stddev=he_stdev), dtype=tf.float32, trainable=True)
+            self.b = tf.Variable(tf.zeros([self.units], dtype=tf.float32), trainable=True)
+            # print(self.wts.shape)
+        else:
+            raise ValueError(f'Unknown wt_init label {self.wt_init}')
+
 
     def compute_net_input(self, x):
         '''Computes the net input for the current Dense layer.
@@ -728,6 +751,26 @@ class Conv2D(Layer):
         #NOTE not sure what initialization method to use
         B, Iy, Ix, K1 = input_shape
         w_shape = (self.kernel_size[0], self.kernel_size[1], K1, self.units)
+        if self.wt_init == 'normal':
+            #wts using input_shape[-1]
+            self.wts = tf.Variable(tf.random.normal(shape=w_shape, mean=0.0, stddev=self.wt_scale), dtype=tf.float32, trainable=True) # NOTE Know this for exam, wrapping in tf.Variable
+            #bias
+            self.b = tf.Variable(tf.random.normal(shape=(self.units,), mean=0.0, stddev=self.wt_scale), dtype=tf.float32, trainable=True)
+        elif self.wt_init == 'he':
+            k = self.get_kaiming_gain()
+            # print(input_shape[-1])
+            # print(k)
+            # Had to cast them to floats
+            # ChatGPT told me to make fan in include kernel size ?? Did not know you had to do this-- worked NOTE
+            fan_in = K1 * self.kernel_size[0] * self.kernel_size[1]
+            he_stdev = tf.sqrt(tf.cast(k, tf.float32)) / tf.sqrt(tf.cast(fan_in, tf.float32))
+
+            self.wts = tf.Variable(tf.random.normal(shape=w_shape, mean=0.0, stddev=he_stdev), dtype=tf.float32, trainable=True)
+            self.b = tf.Variable(tf.zeros([self.units], dtype=tf.float32), trainable=True)
+            # print(self.wts.shape)
+        else:
+            raise ValueError(f'Unknown wt_init label {self.wt_init}')
+        
 
         # # Initialize weights properly
         # initial_w = tf.random.normal(w_shape) * self.wt_scale
@@ -736,9 +779,25 @@ class Conv2D(Layer):
         # # Initialize biases properly without creating an EagerTensor
         # initial_b = tf.random.normal((self.units,)) * self.wt_scale
         # self.b = tf.Variable(initial_b, dtype=tf.float32, trainable=True)
-        self.wts = tf.Variable(tf.random.normal(shape=w_shape, mean=0.0, stddev=self.wt_scale), dtype=tf.float32, trainable=True) # NOTE Know this for exam, wrapping in tf.Variable
-        #bias
-        self.b = tf.Variable(tf.random.normal(shape=(self.units,), mean=0.0, stddev=self.wt_scale), dtype=tf.float32, trainable=True)
+
+        # if self.wt_init == 'normal':
+        #     #wts using input_shape[-1]
+        #     self.wts = tf.Variable(tf.random.normal(shape=w_shape, mean=0.0, stddev=self.wt_scale), dtype=tf.float32, trainable=True) # NOTE Know this for exam, wrapping in tf.Variable
+        #     #bias
+        #     self.b = tf.Variable(tf.random.normal(shape=(self.units,), mean=0.0, stddev=self.wt_scale), dtype=tf.float32, trainable=True)
+        # elif self.wt_init == 'he':
+        #     k = self.get_kaiming_gain()
+        #     print(input_shape[-1])
+        #     print(k)
+        #     he_stdev = tf.sqrt(tf.cast(k, tf.float32)) / tf.sqrt(tf.cast(input_shape[-1], tf.float32)) / 2
+        #     stddev = tf.sqrt(2.0) / tf.sqrt(float(input_shape[-1]))
+        #     print(he_stdev)
+
+
+        #     self.wts = tf.Variable(tf.random.normal(shape=w_shape, mean=0.0, stddev=stddev), dtype=tf.float32, trainable=True)
+        #     self.b = tf.Variable(tf.zeros([self.units], dtype=tf.float32), trainable=True)
+        # else:
+        #     raise ValueError(f'Unknown wt_init label {self.wt_init}')
 
     def compute_net_input(self, x):
         '''Computes the net input for the current Conv2D layer. Uses SAME boundary conditions.

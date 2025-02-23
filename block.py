@@ -173,6 +173,7 @@ class VGGConvBlock(Block):
         and 'VGGBlock_0/conv_1'. This will help making sense of the summary print outs when the net is compiled.
         '''
         super().__init__(blockname, prev_layer_or_block=prev_layer_or_block)
+        self.wt_init = wt_init
 
         if isinstance(units, int): # THIS is because the test code and docstring seem to contradict
             units = [units] * num_conv_layers  # Repeat the value for the number of conv layers
@@ -274,6 +275,7 @@ class VGGDenseBlock(Block):
         '''
         # call super constructor
         super().__init__(blockname, prev_layer_or_block)
+        self.wt_init = wt_init
 
         # Handle both single value and tuple/list of units
         if not isinstance(units, (tuple, list)):
