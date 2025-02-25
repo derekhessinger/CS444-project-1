@@ -164,15 +164,16 @@ class Layer:
         - Unless instructed otherwise, you may use the activation function implementations provided by the low level
         TensorFlow API here (You already implemented them in CS343 so you have earned it :)
         '''
-
-        if self.activation == 'relu':
+        # Use act_fun_name instead of activation
+        activation_to_use = self.get_act_fun_name()  # or directly use self.act_fun_name if available
+        if activation_to_use == 'relu':
             return tf.nn.relu(net_in)
-        elif self.activation == 'linear':
+        elif activation_to_use == 'linear':
             return net_in  # Linear activation just returns the input unchanged
-        elif self.activation == 'softmax':
+        elif activation_to_use == 'softmax':
             return tf.nn.softmax(net_in, axis=-1)  # Softmax applied across the last dimension
         else:
-            raise ValueError(f'Unknown activation function {self.activation}')
+            raise ValueError(f'Unknown activation function {activation_to_use}')
 
     def __call__(self, x):
         '''Do a forward pass thru the layer with mini-batch `x`.

@@ -231,15 +231,15 @@ class VGG8(network.DeepNetwork):
         self.layers = []
         
         # First conv block (64 filters)
-        conv_block_1 = VGGConvBlock('conv_block_1', filters[0], None, wt_scale=wt_scale, wt_init=wt_init)
+        conv_block_1 = VGGConvBlock('conv_block_1', filters[0], None, wt_scale=wt_scale, wt_init=wt_init, dropout=conv_dropout)
         self.layers.append(conv_block_1)
         
         # Second conv block (128 filters)
-        conv_block_2 = VGGConvBlock('conv_block_2', filters[1], prev_layer_or_block=conv_block_1, wt_scale=wt_scale, wt_init=wt_init)
+        conv_block_2 = VGGConvBlock('conv_block_2', filters[1], prev_layer_or_block=conv_block_1, wt_scale=wt_scale, wt_init=wt_init, dropout=conv_dropout)
         self.layers.append(conv_block_2)
 
         # Second conv block (256 filters)
-        conv_block_3 = VGGConvBlock('conv_block_2', filters[2], prev_layer_or_block=conv_block_2, wt_scale=wt_scale, wt_init=wt_init)
+        conv_block_3 = VGGConvBlock('conv_block_3', filters[2], prev_layer_or_block=conv_block_2, wt_scale=wt_scale, wt_init=wt_init, dropout=conv_dropout)
         self.layers.append(conv_block_3)
         
         # Flatten BEFORE dense blocks
