@@ -325,6 +325,45 @@ class VGG15(network.DeepNetwork):
         TODO: Use blocks to build the VGG15 network (where appropriate). For grading purposes and your sanity, do NOT
         use ONLY Layer objects here!
         '''
+        # call super
+        super().__init__(input_feats_shape=input_feats_shape, reg=reg)
+        self.wt_init = wt_init
+        self.layers = []
+        
+        # First conv block (64 filters)
+        conv_block_1 = VGGConvBlock('conv_block_1', filters[0], None, wt_scale=wt_scale, wt_init=wt_init, dropout=conv_dropout)
+        self.layers.append(conv_block_1)
+        
+        # Second conv block (128 filters)
+        conv_block_2 = VGGConvBlock('conv_block_2', filters[1], prev_layer_or_block=conv_block_1, wt_scale=wt_scale, wt_init=wt_init, dropout=conv_dropout)
+        self.layers.append(conv_block_2)
+
+        # Second conv block (256 filters)
+        conv_block_3 = VGGConvBlock('conv_block_3', filters[2], prev_layer_or_block=conv_block_2, num_conv_layers=3, wt_scale=wt_scale, wt_init=wt_init, dropout=conv_dropout)
+        self.layers.append(conv_block_3)
+
+        
+        conv_block_4 = VGGConvBlock('conv_block_4', filters[3], prev_layer_or_block=conv_block_3, num_conv_layers=3, wt_scale=wt_scale, wt_init=wt_init, dropout=conv_dropout)
+        self.layers.append(conv_block_4)
+
+        
+        conv_block_5 = VGGConvBlock('conv_block_5', filters[4], prev_layer_or_block=conv_block_4, num_conv_layers=3, wt_scale=wt_scale, wt_init=wt_init, dropout=conv_dropout)
+        self.layers.append(conv_block_5)
+        
+        # Flatten BEFORE dense blocks
+        flatten_layer = Flatten('flatten', conv_block_5)
+        self.layers.append(flatten_layer)
+        
+        # Dense block with dropout (256 units)
+        dense_block = VGGDenseBlock('dense_block', units=dense_units[0], prev_layer_or_block=flatten_layer, 
+                                wt_scale=wt_scale, dropout=True, wt_init=wt_init)
+        self.layers.append(dense_block)
+        
+        # Output layer (C units with softmax)
+        self.output_layer = Dense('output', units=C, activation='softmax', 
+                                prev_layer_or_block=dense_block, wt_scale=wt_scale, 
+                                wt_init=wt_init)
+        self.layers.append(self.output_layer)
         pass
 
     def __call__(self, x):
@@ -342,6 +381,10 @@ class VGG15(network.DeepNetwork):
 
         NOTE: Use the functional API to perform the forward pass through your network!
         '''
+        net_act = x
+        for cur_layer in self.layers:
+            net_act = cur_layer(net_act)
+        return net_act
         pass
 
 
