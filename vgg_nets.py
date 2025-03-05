@@ -331,23 +331,23 @@ class VGG15(network.DeepNetwork):
         self.layers = []
         
         # First conv block (64 filters)
-        conv_block_1 = VGGConvBlock('conv_block_1', filters[0], None, wt_scale=wt_scale, wt_init=wt_init, dropout=conv_dropout, conv_dropout_rates=conv_dropout_rates)
+        conv_block_1 = VGGConvBlock('conv_block_1', filters[0], None, wt_scale=wt_scale, wt_init=wt_init, dropout=conv_dropout, dropout_rate=conv_dropout_rates[0])
         self.layers.append(conv_block_1)
         
         # Second conv block (128 filters)
-        conv_block_2 = VGGConvBlock('conv_block_2', filters[1], prev_layer_or_block=conv_block_1, wt_scale=wt_scale, wt_init=wt_init, dropout=conv_dropout, conv_dropout_rates=conv_dropout_rates)
+        conv_block_2 = VGGConvBlock('conv_block_2', filters[1], prev_layer_or_block=conv_block_1, wt_scale=wt_scale, wt_init=wt_init, dropout=conv_dropout, dropout_rate=conv_dropout_rates[1])
         self.layers.append(conv_block_2)
 
         # Third conv block (256 filters)
-        conv_block_3 = VGGConvBlock('conv_block_3', filters[2], prev_layer_or_block=conv_block_2, num_conv_layers=3, wt_scale=wt_scale, wt_init=wt_init, dropout=conv_dropout, conv_dropout_rates=conv_dropout_rates)
+        conv_block_3 = VGGConvBlock('conv_block_3', filters[2], prev_layer_or_block=conv_block_2, num_conv_layers=3, wt_scale=wt_scale, wt_init=wt_init, dropout=conv_dropout, dropout_rate=conv_dropout_rates[2])
         self.layers.append(conv_block_3)
 
         # Fourth conv block
-        conv_block_4 = VGGConvBlock('conv_block_4', filters[3], prev_layer_or_block=conv_block_3, num_conv_layers=3, wt_scale=wt_scale, wt_init=wt_init, dropout=conv_dropout, conv_dropout_rates=conv_dropout_rates)
+        conv_block_4 = VGGConvBlock('conv_block_4', filters[3], prev_layer_or_block=conv_block_3, num_conv_layers=3, wt_scale=wt_scale, wt_init=wt_init, dropout=conv_dropout, dropout_rate=conv_dropout_rates[3])
         self.layers.append(conv_block_4)
 
         # Fifth conv block
-        conv_block_5 = VGGConvBlock('conv_block_5', filters[4], prev_layer_or_block=conv_block_4, num_conv_layers=3, wt_scale=wt_scale, wt_init=wt_init, dropout=conv_dropout, conv_dropout_rates=conv_dropout_rates)
+        conv_block_5 = VGGConvBlock('conv_block_5', filters[4], prev_layer_or_block=conv_block_4, num_conv_layers=3, wt_scale=wt_scale, wt_init=wt_init, dropout=conv_dropout, dropout_rate=conv_dropout_rates[4])
         self.layers.append(conv_block_5)
         
         # Flatten BEFORE dense blocks
@@ -412,6 +412,26 @@ class VGG4Plus(network.DeepNetwork):
             The method used to initialize the weights/biases. Options: 'normal', 'he'.
         '''
         super().__init__(input_feats_shape=input_feats_shape, reg=reg)
+        self.wt_init = wt_init
+        self.layers = []
+        conv_layer_1 = Conv2D('conv_layer_1', filters, kernel_size=(3,3), strides= 1, activation= 
+                              'relu', wt_scale= wt_scale, prev_layer_or_block=None, wt_init=wt_init, do_batch_norm = True)
+        self.layers.append(conv_layer_1)
+        conv_layer_2 = Conv2D('conv_layer_2', filters, kernel_size=(3,3), strides= 1, activation= 
+                              'relu', wt_scale= wt_scale, prev_layer_or_block=conv_layer_1, wt_init=wt_init, do_batch_norm = True)
+        self.layers.append(conv_layer_2)
+        max_pool_layer_2 = MaxPool2D('max_pool_layer_1', pool_size= (2,2), strides = 2, prev_layer_or_block=conv_layer_2, padding='VALID')
+        self.layers.append(max_pool_layer_2)
+        flatten_layer_2 = Flatten('flatten_layer_2', max_pool_layer_2)
+        self.layers.append(flatten_layer_2)
+        dense_layer_3 = Dense('dense_layer_3', dense_units, activation='relu', wt_scale=wt_scale,
+                              prev_layer_or_block=flatten_layer_2, wt_init=wt_init, do_batch_norm=True)
+        self.layers.append(dense_layer_3)
+        dropout_layer_3 = Dropout('dropout_layer_3', 0.5, dense_layer_3)
+        self.layers.append(dropout_layer_3)
+        self.output_layer = Dense('output_layer', units=C, activation='softmax', wt_scale=wt_scale,
+                              prev_layer_or_block=dropout_layer_3, wt_init=wt_init, do_batch_norm=True)
+        self.layers.append(self.output_layer)
 
     def __call__(self, x):
         '''Forward pass through the VGG15 network with the data samples `x`.
@@ -428,6 +448,10 @@ class VGG4Plus(network.DeepNetwork):
 
         NOTE: Use the functional API to perform the forward pass through your network!
         '''
+        net_act = x
+        for cur_layer in self.layers:
+            net_act = cur_layer(net_act)
+        return net_act
         pass
 
 
@@ -462,7 +486,46 @@ class VGG15Plus(network.DeepNetwork):
         conv_dropout_rates: tuple of floats. len(conv_dropout_rates)=num_conv_blocks
             The dropout rate to use in each conv block. Only has an effect if `conv_dropout` is True.
         '''
-        pass
+        # call super
+        super().__init__(input_feats_shape=input_feats_shape, reg=reg)
+        # print(reg)
+        self.wt_init = wt_init
+        self.layers = []
+        
+        # First conv block (64 filters)
+        conv_block_1 = VGGConvBlock('conv_block_1', filters[0], None, wt_scale=wt_scale, wt_init=wt_init, dropout=conv_dropout, dropout_rate=conv_dropout_rates[0], do_batch_norm=True)
+        self.layers.append(conv_block_1)
+        
+        # Second conv block (128 filters)
+        conv_block_2 = VGGConvBlock('conv_block_2', filters[1], prev_layer_or_block=conv_block_1, wt_scale=wt_scale, wt_init=wt_init, dropout=conv_dropout, dropout_rate=conv_dropout_rates[1], do_batch_norm=True)
+        self.layers.append(conv_block_2)
+
+        # Third conv block (256 filters)
+        conv_block_3 = VGGConvBlock('conv_block_3', filters[2], prev_layer_or_block=conv_block_2, num_conv_layers=3, wt_scale=wt_scale, wt_init=wt_init, dropout=conv_dropout, dropout_rate=conv_dropout_rates[2], do_batch_norm=True)
+        self.layers.append(conv_block_3)
+
+        # Fourth conv block
+        conv_block_4 = VGGConvBlock('conv_block_4', filters[3], prev_layer_or_block=conv_block_3, num_conv_layers=3, wt_scale=wt_scale, wt_init=wt_init, dropout=conv_dropout, dropout_rate=conv_dropout_rates[3], do_batch_norm=True)
+        self.layers.append(conv_block_4)
+
+        # Fifth conv block
+        conv_block_5 = VGGConvBlock('conv_block_5', filters[4], prev_layer_or_block=conv_block_4, num_conv_layers=3, wt_scale=wt_scale, wt_init=wt_init, dropout=conv_dropout, dropout_rate=conv_dropout_rates[4], do_batch_norm=True)
+        self.layers.append(conv_block_5)
+        
+        # Flatten BEFORE dense blocks
+        flatten_layer = Flatten('flatten', conv_block_5)
+        self.layers.append(flatten_layer)
+        
+        # Dense block with dropout (256 units)
+        dense_block = VGGDenseBlock('dense_block', units=dense_units[0], prev_layer_or_block=flatten_layer, 
+                                wt_scale=wt_scale, dropout=True, wt_init=wt_init, do_batch_norm=True)
+        self.layers.append(dense_block)
+        
+        # Output layer (C units with softmax)
+        self.output_layer = Dense('output', units=C, activation='softmax', 
+                                prev_layer_or_block=dense_block, wt_scale=wt_scale, 
+                                wt_init=wt_init, do_batch_norm=True)
+        self.layers.append(self.output_layer)
 
     def __call__(self, x):
         '''Forward pass through the VGG15 network with the data samples `x`.
@@ -479,6 +542,10 @@ class VGG15Plus(network.DeepNetwork):
 
         NOTE: Use the functional API to perform the forward pass through your network!
         '''
+        net_act = x
+        for cur_layer in self.layers:
+            net_act = cur_layer(net_act)
+        return net_act
         pass
 
 
@@ -489,7 +556,45 @@ class VGG15PlusPlus(network.DeepNetwork):
     '''
     def __init__(self, C, input_feats_shape, filters=(64, 128, 256, 512, 512), dense_units=(512,), reg=0.6,
                  wt_scale=1e-3, wt_init='he', conv_dropout=True, conv_dropout_rates=(0.3, 0.4, 0.4, 0.4, 0.4)):
-        pass
+        # call super
+        super().__init__(input_feats_shape=input_feats_shape, reg=reg)
+        self.wt_init = wt_init
+        self.layers = []
+        
+        # First conv block (64 filters)
+        conv_block_1 = VGGConvBlock('conv_block_1', filters[0], None, wt_scale=wt_scale, wt_init=wt_init, dropout=conv_dropout, dropout_rate=conv_dropout_rates[0], do_batch_norm=True)
+        self.layers.append(conv_block_1)
+        
+        # Second conv block (128 filters)
+        conv_block_2 = VGGConvBlock('conv_block_2', filters[1], prev_layer_or_block=conv_block_1, wt_scale=wt_scale, wt_init=wt_init, dropout=conv_dropout, dropout_rate=conv_dropout_rates[1], do_batch_norm=True)
+        self.layers.append(conv_block_2)
+
+        # Third conv block (256 filters)
+        conv_block_3 = VGGConvBlock('conv_block_3', filters[2], prev_layer_or_block=conv_block_2, num_conv_layers=3, wt_scale=wt_scale, wt_init=wt_init, dropout=conv_dropout, dropout_rate=conv_dropout_rates[2], do_batch_norm=True)
+        self.layers.append(conv_block_3)
+
+        # Fourth conv block
+        conv_block_4 = VGGConvBlock('conv_block_4', filters[3], prev_layer_or_block=conv_block_3, num_conv_layers=3, wt_scale=wt_scale, wt_init=wt_init, dropout=conv_dropout, dropout_rate=conv_dropout_rates[3], do_batch_norm=True)
+        self.layers.append(conv_block_4)
+
+        # Fifth conv block
+        conv_block_5 = VGGConvBlock('conv_block_5', filters[4], prev_layer_or_block=conv_block_4, num_conv_layers=3, wt_scale=wt_scale, wt_init=wt_init, dropout=conv_dropout, dropout_rate=conv_dropout_rates[4], do_batch_norm=True)
+        self.layers.append(conv_block_5)
+        
+        # Flatten BEFORE dense blocks
+        flatten_layer = Flatten('flatten', conv_block_5)
+        self.layers.append(flatten_layer)
+        
+        # Dense block with dropout (256 units)
+        dense_block = VGGDenseBlock('dense_block', units=dense_units[0], prev_layer_or_block=flatten_layer, 
+                                wt_scale=wt_scale, dropout=True, wt_init=wt_init, do_batch_norm=True)
+        self.layers.append(dense_block)
+        
+        # Output layer (C units with softmax)
+        self.output_layer = Dense('output', units=C, activation='softmax', 
+                                prev_layer_or_block=dense_block, wt_scale=wt_scale, 
+                                wt_init=wt_init, do_batch_norm=True)
+        self.layers.append(self.output_layer)
 
     def __call__(self, x):
         '''Forward pass through the VGG15 network with the data samples `x`.
@@ -506,4 +611,8 @@ class VGG15PlusPlus(network.DeepNetwork):
 
         NOTE: Use the functional API to perform the forward pass through your network!
         '''
+        net_act = x
+        for cur_layer in self.layers:
+            net_act = cur_layer(net_act)
+        return net_act
         pass

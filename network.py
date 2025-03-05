@@ -73,7 +73,7 @@ class DeepNetwork:
         # Initialize optimizer
         #TODO: Fill this section in
         if optimizer == 'adam':
-            self.opt = tf.keras.optimizers.Adam(learning_rate=lr, beta_1=beta_1, weight_decary=self.reg)
+            self.opt = tf.keras.optimizers.Adam(learning_rate=lr, beta_1=beta_1, weight_decay=self.reg)
         elif optimizer == 'adamw':
             self.opt = tf.keras.optimizers.AdamW(learning_rate=lr, weight_decay=self.reg, beta_1=beta_1)
         else:

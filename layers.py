@@ -203,6 +203,8 @@ class Layer:
         '''
         # net_in = x
         net_in = self.compute_net_input(x)
+        if self.do_batch_norm and (not self.bn_mean is None):
+            net_in = self.compute_batch_norm(net_in)
         net_act = self.compute_net_activation(net_in)
         if self.output_shape is None:
             self.output_shape = list(net_act.shape)
@@ -262,6 +264,11 @@ class Layer:
         bool.
             True if the layer has batch normalization turned on, False otherwise.
         '''
+        return self.do_batch_norm
+        if self.do_batch_norm:
+            return True
+        else:
+            return False
         pass
 
     def init_batchnorm_params(self):
@@ -298,6 +305,19 @@ class Layer:
         # KEEP ME
         if not self.do_batch_norm:
             return
+        
+        # print(self.output_shape[1:])
+        param_shape = [1] * len(self.output_shape[1:])
+        param_shape.append(self.output_shape[-1])
+
+        self.bn_gain = tf.Variable(tf.ones(param_shape, dtype=tf.float32), trainable=True)
+        self.bn_bias = tf.Variable(tf.zeros(param_shape, dtype=tf.float32), trainable=True)
+
+        self.bn_mean = tf.Variable(tf.zeros(param_shape, dtype=tf.float32), trainable=False)
+        self.bn_stdev = tf.Variable(tf.ones(param_shape, dtype=tf.float32), trainable=False)
+
+        self.b = tf.Variable(0.0, dtype=tf.float32, trainable=False)
+        
 
 
     def compute_batch_norm(self, net_in, eps=0.001):
@@ -500,7 +520,21 @@ class Dense(Layer):
         - The net input should be normalized using the current mini-batch mean/stddev during training and the moving avg
         parameters when not training.
         '''
-        pass
+        #calculate mean and stand based on each neuron
+        mean_j = tf.reduce_mean(net_in, axis = 0, keepdims = True)
+        std_j = tf.sqrt(tf.math.reduce_variance(net_in, axis = 0, keepdims = True))
+
+        if self.is_training:
+            self.bn_mean.assign(self.batch_norm_momentum * self.bn_mean + (1-self.batch_norm_momentum)*(mean_j))
+            self.bn_stdev.assign(self.batch_norm_momentum * self.bn_stdev + (1-self.batch_norm_momentum)*(std_j))
+            net_in_stad = ( net_in - mean_j ) / (std_j + eps)
+        else:
+            net_in_stad = ( net_in - self.bn_mean ) / (self.bn_stdev + eps)
+
+        net_in_bn = self.bn_gain * net_in_stad + self.bn_bias
+
+        return net_in_bn
+    
 
     def __str__(self):
         '''This layer's "ToString" method. Feel free to customize if you want to make the layer description fancy,
@@ -858,7 +892,20 @@ class Conv2D(Layer):
         - The difference is in the moving average parameters: as in Dense, they are computed over the non-batch
         dimensions. This likely requires a small code change.
         '''
-        pass
+        #calculate mean and stand based on each neuron
+        mean_j = tf.reduce_mean(net_in, axis = [0,1,2], keepdims = True)
+        std_j = tf.sqrt(tf.math.reduce_variance(net_in, axis = [0,1,2], keepdims = True))
+
+        if self.is_training:
+            self.bn_mean.assign(self.batch_norm_momentum * self.bn_mean + (1-self.batch_norm_momentum)*(mean_j))
+            self.bn_stdev.assign(self.batch_norm_momentum * self.bn_stdev + (1-self.batch_norm_momentum)*(std_j))
+            net_in_stad = ( net_in - mean_j ) / (std_j + eps)
+        else:
+            net_in_stad = ( net_in - self.bn_mean ) / (self.bn_stdev + eps)
+
+        net_in_bn = self.bn_gain * net_in_stad + self.bn_bias
+
+        return net_in_bn
 
     def __str__(self):
         '''This layer's "ToString" method. Feel free to customize if you want to make the layer description fancy,
