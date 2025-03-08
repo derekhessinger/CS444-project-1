@@ -429,6 +429,10 @@ class DeepNetwork:
         
         # val early stop list
         val_early_stop = []
+        
+        # val early stop list
+        val_decay_lr = []
+        num_prev_lr_decays = 0
 
         # Main training loop
         for epoch in range(max_epochs):
@@ -474,6 +478,12 @@ class DeepNetwork:
                 val_early_stop, stop = self.early_stopping(val_early_stop, val_loss, patience)
                 if stop:
                     break
+
+                val_decay_lr, decay_bool = self.early_stopping(val_decay_lr, val_loss, lr_patience)
+                if (num_prev_lr_decays < lr_max_decays) and decay_bool:
+                    self.update_lr(lr_decay_factor)
+                    num_prev_lr_decays += 1
+
             else:
                 if verbose:
                     epoch_time = time.time() - epoch_start_time
@@ -624,4 +634,5 @@ class DeepNetwork:
         2. Print out the optimizer's learning rate before and after the change.
         '''
         print('Current lr=', self.opt.learning_rate.numpy(), end=' ')
+        self.opt.learning_rate = self.opt.learning_rate * lr_decay_rate
         print('Updated lr=', self.opt.learning_rate.numpy())
