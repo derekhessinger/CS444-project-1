@@ -3,7 +3,7 @@ Defines the parent Block class and VGG blocks
 YOUR NAMES HERE
 CS444: Deep Learning
 '''
-from layers import Conv2D, MaxPool2D, Dropout, Dense
+from layers import Conv2D, MaxPool2D, Dropout, Dense, MaxOnOffPool2D
 
 
 class Block:
@@ -323,4 +323,108 @@ class VGGDenseBlock(Block):
         net_act = x
         for layer in self.layers:
             net_act = layer(net_act)
+        return net_act
+    
+class VGGConvOnOffBlock(Block):
+    '''A convolutional block in the VGG family of neural networks. It is composed of the following sequence of layers:
+
+    Conv2D → Conv2D → MaxPool2D
+
+    NOTE:
+    - The number of successive conv layers is a configurable option.
+    - We leave the option of placing a Dropout layer after the MaxPool2D layer in the block.
+    For example:
+
+    Conv2D → Conv2D → MaxPool2D → Dropout
+    '''
+    def __init__(self, blockname, units, prev_layer_or_block, num_conv_layers=2, pool_size=(2, 2), wt_scale=1e-3,
+                 dropout=False, dropout_rate=0.1, wt_init='normal', do_batch_norm=False):
+        '''VGGConvBlock constructor
+
+        Parameters:
+        -----------
+        blockname: str.
+            Human-readable name for a block (VGGConvBlock_0, VGGConvBlock_1, etc.). Used for debugging and printing
+            summary of net.
+        units: tuple of ints:
+            Number of units (i.e. filters) to use in each convolutional layer.
+            For example: units[0] would be the number for the 1st conv layer, units[1] would be the number for the 2nd,
+            etc.
+        num_conv_layers: int.
+            Number of 2D conv layers to place in sequence within the block. By default this is 2.
+        pool_size. tuple. len(pool_size)=2.
+            The horizontal and vertical size of the pooling window.
+            These will always be the same. For example: (2, 2), (3, 3), etc.
+        wt_scale: float.
+            The standard deviation of the layer weights/bias when initialized according to a standard normal
+            distribution ('normal' method).
+        dropout: bool.
+            Whether to place a dropout layer after the 2D maxpooling layer in the block.
+        dropout_rate: float.
+            If using a dropout layer, the dropout rate of that layer.
+        wt_init: str.
+            The method used to initialize the weights/biases. Options: 'normal', 'he'.
+            NOTE: Ignore Week 1 and until instructed otherwise.
+        do_batch_norm. bool:
+            Whether to do batch normalization in appropriate layers.
+            NOTE: Ignore Weeks 1, 2 and until instructed otherwise.
+
+        TODO:
+        1. Call the superclass constructor.
+        2. Create the layers that belong to this block and place them (in order) in the self.layers list.
+
+        NOTE:
+        1. Keep in mind that the number of adjacent conv layers in the block may be different than the default of 2. So
+        do NOT hard-code 2 conv layers. See the parameters.
+        2. Just like VGG4, all convolutions are 3x3, the maxpooling stride is always 2, and conv layers use ReLU.
+        3. When naming the layers belonging to the block, prepend the blockname and number which layer in the block
+        it is. For example, if the block is called 'VGGBlock_0', the conv layers might be called 'VGGBlock_0/conv_0'
+        and 'VGGBlock_0/conv_1'. This will help making sense of the summary print outs when the net is compiled.
+        '''
+        super().__init__(blockname, prev_layer_or_block=prev_layer_or_block)
+        self.wt_init = wt_init
+
+        if isinstance(units, int): # THIS is because the test code and docstring seem to contradict
+            units = [units] * num_conv_layers  # Repeat the value for the number of conv layers
+
+        
+        for i in range(num_conv_layers):
+            if i == 0:
+                conv_layer_i = Conv2D(f"{blockname}/conv_layer_{i}", units[i], kernel_size=(3,3), strides= 1, activation= 
+                              'relu', wt_scale= wt_scale, prev_layer_or_block=prev_layer_or_block, wt_init=wt_init, do_batch_norm = do_batch_norm)
+            else:
+                conv_layer_i = Conv2D(f'{blockname}/conv_layer_{i}', units[i], kernel_size=(3,3), strides= 1, activation= 
+                                'relu', wt_scale= wt_scale, prev_layer_or_block=conv_layer_i, wt_init=wt_init, do_batch_norm = do_batch_norm)
+            self.layers.append(conv_layer_i)
+
+        max_pool_layer = MaxOnOffPool2D(f'{blockname}/max_pool_on_off_layer_{i}', pool_size= pool_size, strides = 2, prev_layer_or_block=conv_layer_i, padding='VALID')
+        self.layers.append(max_pool_layer)
+
+        if dropout:
+            dropout_layer = Dropout(f'{blockname}/dropout_layer_{i}', dropout_rate, prev_layer_or_block=max_pool_layer)
+            self.layers.append(dropout_layer)
+
+
+    def __call__(self, x):
+        '''Forward pass through the block the data samples `x`.
+
+        Parameters:
+        -----------
+        x: tf.constant. tf.float32s. shape=(B, Iy, Ix, K1).
+            Data samples. K1 is the number of channels/units in the PREV layer or block.
+
+        Returns:
+        --------
+        tf.constant. tf.float32s. shape=(B, Iy, Ix, K2).
+            Activations produced by the output layer to the data.
+            K2 is the number of channels/units in the CURR layer or block.
+            NOTE: Iy and Ix represent the spatial dims. The actual spatial dims will likely decrease in the block.
+
+        NOTE:
+        1. Use the functional API to perform the forward pass through your network!
+        2. There is an elegant/short way to forward thru the block involving self.layers... ;)
+        '''
+        net_act = x
+        for cur_layer in self.layers:
+            net_act = cur_layer(net_act)
         return net_act
