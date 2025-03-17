@@ -679,18 +679,18 @@ class VGG16Plus(network.DeepNetwork):
         self.layers.append(flatten_layer)
         
         # Dense block with dropout (256 units)
-        dense_block_1 = VGGDenseBlock('dense_block', units=dense_units[0], prev_layer_or_block=flatten_layer, 
+        dense_block_1 = VGGDenseBlock('dense_block', units=dense_units[0], prev_layer_or_block=flatten_layer, num_dense_blocks=2, 
                                 wt_scale=wt_scale, dropout=True, wt_init=wt_init, do_batch_norm=True)
         self.layers.append(dense_block_1)
         
-        # Dense block with dropout (256 units)
-        dense_block_2 = VGGDenseBlock('dense_block', units=dense_units[1], prev_layer_or_block=dense_block_1, 
-                                wt_scale=wt_scale, dropout=True, wt_init=wt_init, do_batch_norm=True)
-        self.layers.append(dense_block_2)
+        # # Dense block with dropout (256 units)
+        # dense_block_2 = VGGDenseBlock('dense_block', units=dense_units[1], prev_layer_or_block=dense_block_1, 
+        #                         wt_scale=wt_scale, dropout=True, wt_init=wt_init, do_batch_norm=True)
+        # self.layers.append(dense_block_2)
         
         # Output layer (C units with softmax)
         self.output_layer = Dense('output', units=C, activation='softmax', 
-                                prev_layer_or_block=dense_block_2, wt_scale=wt_scale, 
+                                prev_layer_or_block=dense_block_1, wt_scale=wt_scale, 
                                 wt_init=wt_init, do_batch_norm=True)
         self.layers.append(self.output_layer)
 
@@ -752,18 +752,18 @@ class VGG16PlusPlus(network.DeepNetwork):
         self.layers.append(flatten_layer)
         
         # Dense block with dropout (256 units)
-        dense_block_1 = VGGDenseBlock('dense_block', units=dense_units[0], prev_layer_or_block=flatten_layer, 
+        dense_block_1 = VGGDenseBlock('dense_block_1', units=dense_units[0], prev_layer_or_block=flatten_layer, num_dense_blocks=2,
                                 wt_scale=wt_scale, dropout=True, wt_init=wt_init, do_batch_norm=True)
         self.layers.append(dense_block_1)
         
-        # Dense block with dropout (256 units)
-        dense_block_2 = VGGDenseBlock('dense_block', units=dense_units[1], prev_layer_or_block=dense_block_1, 
-                                wt_scale=wt_scale, dropout=True, wt_init=wt_init, do_batch_norm=True)
-        self.layers.append(dense_block_2)
+        # # Dense block with dropout (256 units)
+        # dense_block_2 = VGGDenseBlock('dense_block', units=dense_units[1], prev_layer_or_block=dense_block_1, 
+        #                         wt_scale=wt_scale, dropout=True, wt_init=wt_init, do_batch_norm=True)
+        # self.layers.append(dense_block_2)
         
         # Output layer (C units with softmax)
         self.output_layer = Dense('output', units=C, activation='softmax', 
-                                prev_layer_or_block=dense_block, wt_scale=wt_scale, 
+                                prev_layer_or_block=dense_block_1, wt_scale=wt_scale, 
                                 wt_init=wt_init, do_batch_norm=True)
         self.layers.append(self.output_layer)
 
