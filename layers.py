@@ -208,6 +208,7 @@ class Layer:
         net_act = self.compute_net_activation(net_in)
         if self.output_shape is None:
             self.output_shape = list(net_act.shape)
+            # print(f"{self.layer_name}: {list(net_act.shape)}")
         return net_act
 
     def get_params(self):
