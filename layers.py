@@ -912,3 +912,70 @@ class Conv2D(Layer):
         but this method is provided to you. You should not need to modify it.
         '''
         return f'Conv2D layer output({self.layer_name}) shape: {self.output_shape}'
+
+
+# EXTENSION:
+class MaxOnOffPool2D(Layer):
+    '''A custom layer.'''
+    def __init__(self, name, pool_size=(2, 2), strides=1, prev_layer_or_block=None, padding='VALID'):
+        '''MaxOnOffPool2D layer constructor.
+
+        Parameters:
+        -----------
+        name: str.
+            Human-readable name for the current layer (e.g. Drop_0). Used for debugging and printing summary of net.
+        pool_size. tuple. len(pool_size)=2.
+            The horizontal and vertical size of the pooling window.
+            These will always be the same. For example: (2, 2), (3, 3), etc.
+        strides. int.
+            The horizontal AND vertical stride of the max pooling operation. These will always be the same.
+            By convention, we use a single int to specify both of them.
+        prev_layer_or_block: Layer (or Layer-like) object.
+            Reference to the Layer object that is beneath the current Layer object. `None` if there is no preceding
+            layer.
+            Example (standard MLP): Input → Dense_Hidden → Dense_Output.
+                The Dense_Output Layer object has `prev_layer_or_block=Dense_Hidden`.
+        padding: str.
+            Whether or not to pad the input signal before performing max-pooling in TensorFlow str format.
+            Supported options: 'VALID', 'SAME'
+            Most often, this will be 'VALID' for no padding, like we are used to.
+
+        TODO: Set the parameters as instance variables. Call the superclass constructor to handle setting instance vars
+        the child has in common with the parent class.
+        '''
+        super().__init__(name, 'linear', prev_layer_or_block)
+        self.pool_size = pool_size
+        self.strides = strides
+        self.padding = padding
+        pass
+
+    def compute_net_input(self, x):
+        '''Computes the net input for the current MaxPool2D layer.
+
+        Parameters:
+        -----------
+        x: tf.constant. tf.float32s. shape=(B, Iy, Ix, K1).
+            Input from the layer beneath in the network. Should be 4D (e.g. from a Conv2D or MaxPool2D layer).
+            K1 refers to the number of units/filters in the PREVIOUS layer.
+
+        Returns:
+        --------
+        tf.constant. tf.float32s. shape=(B, Iy, Ix, 2*K1).
+            The net_in.
+        '''
+        # "On" neurons: capture the high values with max pooling
+        on_neurons_in = tf.nn.max_pool2d(x, self.pool_size, self.strides, self.padding)
+        
+        # "Off" neurons: capture the low values using a simulated min pooling
+        off_neurons_in = -tf.nn.max_pool2d(-x, self.pool_size, self.strides, self.padding)
+        
+        # Concatenate along the channel dimension to double the filters
+        net_out = tf.concat([on_neurons_in, off_neurons_in], axis=-1)
+        return net_out
+
+
+    def __str__(self):
+        '''This layer's "ToString" method. Feel free to customize if you want to make the layer description fancy,
+        but this method is provided to you. You should not need to modify it.
+        '''
+        return f'MaxPool2D layer output({self.layer_name}) shape: {self.output_shape}'
