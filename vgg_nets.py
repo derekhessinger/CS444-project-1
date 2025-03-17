@@ -994,7 +994,7 @@ class VGG15PlusPlusOffOn(network.DeepNetwork):
         self.layers = []
 
         #Extension
-        on_off_maxpool_layer = MaxOnOffPool2D("on_off_maxpool", pool_size=(2,2), strides = 2, prev_layer_or_block=None, padding='VALID')
+        on_off_maxpool_layer = MaxOnOffPool2D("on_off_maxpool", pool_size=(1,1), strides = 1, prev_layer_or_block=None, padding='VALID')
         self.layers.append(on_off_maxpool_layer)
         
         # First conv block (64 filters)
