@@ -968,7 +968,7 @@ class MaxOnOffPool2D(Layer):
         on_neurons_in = tf.nn.max_pool2d(x, self.pool_size, self.strides, self.padding)
         
         # "Off" neurons: capture the low values using a simulated min pooling
-        off_neurons_in = -tf.nn.max_pool2d(-x, self.pool_size, self.strides, self.padding)
+        off_neurons_in = tf.nn.max_pool2d(-x, self.pool_size, self.strides, self.padding)
         
         # Concatenate along the channel dimension to double the filters
         net_out = tf.concat([on_neurons_in, off_neurons_in], axis=-1)
